@@ -28,24 +28,38 @@
 require 'chef/util/file_edit'
 
 fqdn = node[:set_fqdn]
+use_short_name = node[:use_short_name]
 
 if fqdn
+  fqdn =~ /^([^.]+)/
+  hostname = $1
   changed = false
 
   file "/etc/hostname" do
-    content "#{fqdn}\n"
+    if use_short_name
+      content "#{hostname}\n"
+    else
+      content "#{fqdn}\n"
+    end
     owner "root"
     group "root"
     mode "0644"
   end
 
-  if node[:fqdn] != fqdn
-    execute "hostname #{fqdn}"
-    changed = true
+  if use_short_name
+    if node[:hostname] != hostname
+      execute "hostname #{hostname}"
+      changed = true
+    end
+  else
+    if node[:fqdn] != fqdn
+      execute "hostname #{fqdn}"
+      changed = true
+    end
   end
 
   if node[:fqdn] != fqdn
-    hosts_line = "#{node[:ipaddress]} #{fqdn}"
+    hosts_line = "#{node[:ipaddress]} #{fqdn} #{hostname}"
     hosts_line_re = Regexp.escape(hosts_line)
     hosts_ipaddress_re = "#{Regexp.escape(node[:ipaddress])}"
     ruby_block "put FQDN to /etc/hosts" do
